@@ -483,7 +483,6 @@ def print_maze(maze):
             row.append((bool(maze[i][j].explored), int(maze[i][j].north_wall), int(maze[i][j].east_wall), int(maze[i][j].south_wall), int(maze[i][j].west_wall)))
         print(row)
 
-    pass
 try:
     maze = []
     for i in range(9):
@@ -518,6 +517,14 @@ try:
         
         # correction for changing directions
         walls =  walls[facing:] + walls[:facing]
+
+        # update maze map
+        if current_pos == [0,0]:
+            maze[8][0] = Tile((0,0), 1, 0, walls[0], walls[1], 1, 1)
+        else:
+            maze[8-current_pos[1]][current_pos[0]] = Tile(current_pos, 1, 0, walls[0], walls[1], walls[2], walls[3])
+        
+        print_maze(maze)
 
         # add possible directions to list
         possible_directions = []
@@ -558,14 +565,8 @@ try:
 
         print("current pos:  " + str(current_pos))
         print("facing:  " + str(facing))
-    
-        if current_pos == starting_pos:
-            maze[8][0] = Tile((0,0), 1, 0, walls[0], walls[1], 1, 1)
-        else:
-            maze[8-current_pos[1]][current_pos[0]] = Tile(current_pos, 1, 0, walls[0], walls[1], walls[2], walls[3])
         
-        print_maze(maze)
-        
+        # move to next tile
         if direction_to_move == (0,1):
             pass
         elif direction_to_move == (-1, 0):
