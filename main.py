@@ -483,6 +483,111 @@ def print_maze(maze):
             row.append((bool(maze[i][j].explored), int(maze[i][j].north_wall), int(maze[i][j].east_wall), int(maze[i][j].south_wall), int(maze[i][j].west_wall)))
         print(row)
 
+
+def explore_maze(facing):
+    # send error if out of bounds
+
+    # work out where the walls are
+    left_dist = tofLeft.range()
+    right_dist = tofRight.range()
+    front_dist = tofFront.range()
+    print(left_dist, right_dist, front_dist)
+    #        N E S W
+    walls = [0,0,0,0]
+    if left_dist < 100:
+        walls[3] = 1
+    if front_dist < 100:
+        walls[0] = 1
+    if right_dist < 100:
+        walls[1] = 1
+    mcp23008.display_on_7_segment(walls)        
+    
+    # correction for changing directions
+    walls =  walls[-facing:] + walls[:-facing]
+
+    print("global walls: " + str(walls))
+
+    # update maze map
+    if current_pos == [0,0]:
+        maze[8][0] = Tile((0,0), 1, 0, walls[0], walls[1], 1, 1)
+    else:
+        maze[8-current_pos[1]][current_pos[0]] = Tile(current_pos, 1, 0, walls[0], walls[1], walls[2], walls[3])
+    
+    print_maze(maze)
+
+    if current_pos == end_pos:
+        return facing, current_pos
+
+    # add possible directions to list
+    possible_directions = []
+    if left_dist == 255:
+        possible_directions.append((-1, 0))
+    if front_dist == 255:
+        possible_directions.append((0, 1))
+    if right_dist == 255:
+        possible_directions.append((1, 0))
+    possible_directions.append((0,-1))
+    
+    #possible_directions =  possible_directions[facing:] + possible_directions[:facing]
+    print("possible directions:  " + str(possible_directions))
+    
+    direction_to_move = None
+    # eliminate possible movements that would go into an already explored tile if len > 1
+    if len(possible_directions) > 1:
+        for direction in possible_directions:
+            # convert direction into global direction based on facing
+            global_direction = global_transform(direction)
+            # check if it's been explored
+
+            if maze[8-(current_pos[1]+global_direction[1])][current_pos[0]+global_direction[0]].explored == False:
+                direction_to_move = direction
+                print('direction relative to robot: ' + str(direction))
+
+                # update position
+                current_pos[0] += global_direction[0]
+                current_pos[1] += global_direction[1]
+                break
+
+    # otherwise just pick 1st in list
+    if direction_to_move is None:
+        direction_to_move = possible_directions[0]
+        global_direction = global_transform(direction_to_move)
+        current_pos[0] += global_direction[0]
+        current_pos[1] += global_direction[1]
+
+    print("current pos:  " + str(current_pos))
+    print("facing:  " + str(facing))
+    
+    # move to next tile
+    if direction_to_move == (0,1):
+        pass
+    elif direction_to_move == (-1, 0):
+        turn_degrees(-90,80)
+        facing -= 1
+        if facing < -1:
+            facing = 2
+    elif direction_to_move == (1,0):
+        turn_degrees(90,80)
+        facing += 1
+        if facing > 2:
+            facing = -1
+    else:
+        turn_degrees(90,80)
+        time.sleep(0.5)
+        turn_degrees(90,80)
+        if facing < 1:
+            facing += 2
+        else:
+            facing -= 2
+    
+    move_forward_tiles(80, 1)
+    time.sleep(0.5)
+
+    return facing, current_pos
+
+
+# variables
+end_pos = [0,1] # should be [5,5]
 try:
     maze = []
     for i in range(9):
@@ -495,112 +600,22 @@ try:
     current_pos = starting_pos
     facing = 0 # 0 is North, 1 is East, -1 is West, 2 is South
     while True:
-        # break if all explored
-        if 1 == 0:
-            break
-        # send error if out of bounds
+        facing, current_pos = explore_maze(facing)
+        if current_pos == end_pos:
+            facing, current_pos = explore_maze(facing)
+            #print_maze(maze)
+            shortest_path_lengths, shortest_path = dijkstra(maze, (current_pos[0], current_pos[1]), (0,0))
+            print("Shortest Path Lengths:", shortest_path_lengths)
+            print("Shortest Path:", shortest_path)
+            mcp23008.display_on_7_segment(shortest_path_lengths)
 
-        left_dist = tofLeft.range()
-        right_dist = tofRight.range()
-        front_dist = tofFront.range()
-        print(left_dist, right_dist, front_dist)
-
-        #        N E S W
-        walls = [0,0,0,0]
-        if left_dist < 100:
-            walls[3] = 1
-        if front_dist < 100:
-            walls[0] = 1
-        if right_dist < 100:
-            walls[1] = 1
-        mcp23008.display_on_7_segment(walls)        
-        
-        # correction for changing directions
-        walls =  walls[facing:] + walls[:facing]
-
-        # update maze map
-        if current_pos == [0,0]:
-            maze[8][0] = Tile((0,0), 1, 0, walls[0], walls[1], 1, 1)
-        else:
-            maze[8-current_pos[1]][current_pos[0]] = Tile(current_pos, 1, 0, walls[0], walls[1], walls[2], walls[3])
-        
-        print_maze(maze)
-
-        # add possible directions to list
-        possible_directions = []
-        if left_dist == 255:
-            possible_directions.append((-1, 0))
-        if front_dist == 255:
-            possible_directions.append((0, 1))
-        if right_dist == 255:
-            possible_directions.append((1, 0))
-        possible_directions.append((0,-1))
-        
-        #possible_directions =  possible_directions[facing:] + possible_directions[:facing]
-        print("possible directions:  " + str(possible_directions))
-        
-        direction_to_move = None
-        # eliminate possible movements that would go into an already explored tile if len > 1
-        if len(possible_directions) > 1:
-            for direction in possible_directions:
-                # convert direction into global direction based on facing
-                global_direction = global_transform(direction)
-                # check if it's been explored
-
-                if maze[8-(current_pos[1]+global_direction[1])][current_pos[0]+global_direction[0]].explored == False:
-                    direction_to_move = direction
-                    print('direction relative to robot: ' + str(direction))
-
-                    # update position
-                    current_pos[0] += global_direction[0]
-                    current_pos[1] += global_direction[1]
-                    break
-
-        # otherwise just pick 1st in list
-        if direction_to_move is None:
-            direction_to_move = possible_directions[0]
-            global_direction = global_transform(direction_to_move)
-            current_pos[0] += global_direction[0]
-            current_pos[1] += global_direction[1]
-
-        print("current pos:  " + str(current_pos))
-        print("facing:  " + str(facing))
-        
-        # move to next tile
-        if direction_to_move == (0,1):
-            pass
-        elif direction_to_move == (-1, 0):
-            turn_degrees(-90,80)
-            facing -= 1
-            if facing < -1:
-                facing = 2
-        elif direction_to_move == (1,0):
-            turn_degrees(90,80)
-            facing += 1
-            if facing > 2:
-                facing = -1
-        else:
-            turn_degrees(90,80)
-            time.sleep(0.5)
-            turn_degrees(90,80)
-            if facing < 1:
-                facing += 2
-            else:
-                facing -= 2
-        
-        move_forward_tiles(80, 1)
-        time.sleep(1)
-
-
-
-
-    shortest_path_lengths, shortest_path = dijkstra(maze, (0,0), (1,2))
-    print("Shortest Path Lengths:", shortest_path_lengths)
-    print("Shortest Path:", shortest_path)
-
-
-    move_forward_tiles(50, 6)
-
+            '''
+            Shortest Path: [(0, 1), (0, 2), (1, 2), (1, 1), (1, 0), (0, 0)]
+            follow that path
+            in dijkstra (line 426) check that the tile has been explored
+            '''
+            while True:
+                stop()
     
     
 finally:
