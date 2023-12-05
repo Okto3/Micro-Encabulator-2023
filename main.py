@@ -234,8 +234,8 @@ mcp23008.direction(0x00)
 # Define motor pins
 motor_A_pwm_forward = machine.PWM(machine.Pin(19)) 
 motor_A_pwm_backward = machine.PWM(machine.Pin(18)) 
-motor_B_pwm_forward = machine.PWM(machine.Pin(20)) 
-motor_B_pwm_backward = machine.PWM(machine.Pin(21))
+motor_B_pwm_forward = machine.PWM(machine.Pin(11)) 
+motor_B_pwm_backward = machine.PWM(machine.Pin(10))
 
 # Set PWM frequency (Hz) for both motors
 pwm_freq = 1000
@@ -311,9 +311,7 @@ def turn_degrees(angle, speed):
 
     angle: 0 is forwards, +ve is clockwise, -ve is anticlockwise
     '''
-    required_ticks = int(0.78 * abs(angle))
-
-    trim = 1.1
+    required_ticks = int(0.78 * abs(angle)) + 10 # the +c is the trim
 
     if angle == -90:
         print("turn left")
@@ -322,17 +320,33 @@ def turn_degrees(angle, speed):
     elif angle == 180 or angle == -180:
         print("turn 180")
     
-    while left_ticks < required_ticks*trim or right_ticks < required_ticks*trim:
-        error = left_ticks - right_ticks
-        #print(error)
-        Kp = -5
+    while left_ticks < required_ticks-5 or right_ticks < required_ticks-5:
+        
+        Kp = 10
 
+        a_bit_more_error = 10
+
+        left_error = abs(required_ticks - left_ticks + a_bit_more_error)
+        right_error = abs(required_ticks - right_ticks + a_bit_more_error)
+        print(left_error, right_error)
+
+        #print(error)
+        
+        left_move = int((Kp * left_error) * 65535 / 100)
+        right_move = int((Kp * right_error) * 65535 / 100)
+        if left_move > 65535:
+            left_move = 65535
+        if right_move > 65535:
+            right_move = 65535
+        
         if angle > 0:
-            motor_A_pwm_forward.duty_u16(int((speed + error * Kp) * 65535 / 100))
-            motor_B_pwm_backward.duty_u16(int((speed - error * Kp) * 65535 / 100))
+            motor_A_pwm_forward.duty_u16(left_move)
+            motor_B_pwm_backward.duty_u16(right_move)
+            #print(error, int((speed + error * Kp)), int((speed - error * Kp)))
         else:
-            motor_B_pwm_forward.duty_u16(int((speed + error * Kp) * 65535 / 100))
-            motor_A_pwm_backward.duty_u16(int((speed - error * Kp) * 65535 / 100))
+            motor_B_pwm_forward.duty_u16(right_move)
+            motor_A_pwm_backward.duty_u16(left_move)
+            #print(error, int((speed - error * Kp)), int((speed + error * Kp)))
 
         if left_ticks >= required_ticks:
             motor_A_pwm_forward.duty_u16(0)
@@ -340,6 +354,8 @@ def turn_degrees(angle, speed):
         if right_ticks >= required_ticks:
             motor_B_pwm_forward.duty_u16(0)
             motor_B_pwm_backward.duty_u16(0)
+        time.sleep(0.05)
+        print(left_ticks, right_ticks, required_ticks)
     stop()
     reset_ticks()
 
@@ -362,7 +378,7 @@ def move_forward_tiles(speed, tiles_to_move):
     distance_to_wall = 80
     min_tof_threshold = 100
 
-    trim = 0.95
+    trim = 1.05
 
     while (left_ticks < 0.94*180*tiles_to_move*trim or right_ticks < 0.94*180*tiles_to_move*trim) and tofFront.range() > 20:
         #print(left_ticks)
@@ -581,13 +597,51 @@ def explore_maze(facing):
             facing -= 2
     
     move_forward_tiles(80, 1)
-    time.sleep(0.5)
+    #time.sleep(0.5)
 
     return facing, current_pos
 
+def follow_path(path):
+    # Initial values
+    facing = 0  # Assuming the robot starts facing North
+
+    # Loop through each step in the path
+    for i in range(len(path) - 1):
+        current_position = path[i]
+        next_position = path[i + 1]
+
+        # Determine the direction to move based on the current and next positions
+        direction_to_move = (next_position[0] - current_position[0], next_position[1] - current_position[1])
+
+        # Determine the turn and update facing
+        if direction_to_move == (0,1):
+            pass
+        elif direction_to_move == (-1, 0):
+            turn_degrees(-90,80)
+            facing -= 1
+            if facing < -1:
+                facing = 2
+        elif direction_to_move == (1,0):
+            turn_degrees(90,80)
+            facing += 1
+            if facing > 2:
+                facing = -1
+        else:
+            turn_degrees(90,80)
+            time.sleep(0.5)
+            turn_degrees(90,80)
+            if facing < 1:
+                facing += 2
+            else:
+                facing -= 2
+
+        # Move forward one tile
+        move_forward_tiles(80, 1)
+        return facing
+
 
 # variables
-end_pos = [0,1] # should be [5,5]
+end_pos = [1,0] # should be [5,5]
 try:
     maze = []
     for i in range(9):
@@ -609,6 +663,17 @@ try:
             print("Shortest Path:", shortest_path)
             mcp23008.display_on_7_segment(shortest_path_lengths)
 
+            # orrient forward
+            if facing == 1:
+                turn_degrees(-90, 80)
+            elif facing == 2:
+                turn_degrees(180, 80)
+            elif facing == -1:
+                turn_degrees(90, 80)
+
+            # move to 0
+            facing = follow_path(shortest_path)
+
             '''
             Shortest Path: [(0, 1), (0, 2), (1, 2), (1, 1), (1, 0), (0, 0)]
             follow that path
@@ -616,7 +681,8 @@ try:
             '''
             while True:
                 stop()
-    
-    
+        
+
 finally:
     stop()
+
