@@ -328,7 +328,7 @@ def turn_degrees(angle, speed):
 
         left_error = abs(required_ticks - left_ticks + a_bit_more_error)
         right_error = abs(required_ticks - right_ticks + a_bit_more_error)
-        print(left_error, right_error)
+        #print(left_error, right_error)
 
         #print(error)
         
@@ -355,7 +355,7 @@ def turn_degrees(angle, speed):
             motor_B_pwm_forward.duty_u16(0)
             motor_B_pwm_backward.duty_u16(0)
         time.sleep(0.05)
-        print(left_ticks, right_ticks, required_ticks)
+        #print(left_ticks, right_ticks, required_ticks)
     stop()
     reset_ticks()
 
@@ -546,6 +546,8 @@ def explore_maze(facing):
     
     #possible_directions =  possible_directions[facing:] + possible_directions[:facing]
     print("possible directions:  " + str(possible_directions))
+
+    print("curretn pos:  " + str(current_pos))
     
     direction_to_move = None
     # eliminate possible movements that would go into an already explored tile if len > 1
@@ -571,9 +573,10 @@ def explore_maze(facing):
         current_pos[0] += global_direction[0]
         current_pos[1] += global_direction[1]
 
-    print("current pos:  " + str(current_pos))
+    print("next pos:  " + str(current_pos))
     print("facing:  " + str(facing))
     
+    print("direction: " + str(direction_to_move) + "  global direction: " + str(global_direction))
     # move to next tile
     if direction_to_move == (0,1):
         pass
@@ -597,7 +600,7 @@ def explore_maze(facing):
             facing -= 2
     
     move_forward_tiles(80, 1)
-    #time.sleep(0.5)
+    time.sleep(0.5)
 
     return facing, current_pos
 
@@ -613,8 +616,11 @@ def follow_path(path):
         # Determine the direction to move based on the current and next positions
         direction_to_move = (next_position[0] - current_position[0], next_position[1] - current_position[1])
 
+        print(current_position, next_position, direction_to_move)
+
+        
         # Determine the turn and update facing
-        if direction_to_move == (0,1):
+        '''if direction_to_move == (0,1):
             pass
         elif direction_to_move == (-1, 0):
             turn_degrees(-90,80)
@@ -633,11 +639,61 @@ def follow_path(path):
             if facing < 1:
                 facing += 2
             else:
-                facing -= 2
-
+                facing -= 2'''
+        
+        if facing == 0:
+            if direction_to_move == (0,1):
+                pass
+            elif direction_to_move == (1,0):
+                turn_degrees(90, 80)
+            elif direction_to_move == (0,-1):
+                turn_degrees(180, 80)
+            else:
+                turn_degrees(-90, 80)
+        elif facing == 1:
+            if direction_to_move == (0,1):
+                turn_degrees(-90, 80)
+            elif direction_to_move == (1,0):
+                #turn_degrees(90, 80)
+                pass
+            elif direction_to_move == (0,-1):
+                turn_degrees(90, 80)
+            else:
+                turn_degrees(180, 80)
+        elif facing == 2:
+            if direction_to_move == (0,1):
+                turn_degrees(180, 80)
+            elif direction_to_move == (1,0):
+                turn_degrees(-90, 80)
+            elif direction_to_move == (0,-1):
+                #turn_degrees(180, 80)
+                pass
+            else:
+                turn_degrees(90, 80)
+        else:
+            if direction_to_move == (0,1):
+                turn_degrees(90, 80)
+            elif direction_to_move == (1,0):
+                turn_degrees(180, 80)
+            elif direction_to_move == (0,-1):
+                turn_degrees(-90, 80)
+            else:
+                #turn_degrees(, 80)
+                pass
+        
+        if direction_to_move == (0,1):
+            facing = 0
+        elif direction_to_move == (1,0):
+            facing = 1
+        elif direction_to_move == (0,-1):
+            facing = 2
+        else:
+            facing = -1
+            
         # Move forward one tile
         move_forward_tiles(80, 1)
-        return facing
+        current_position = next_position
+    return facing
 
 
 # variables
