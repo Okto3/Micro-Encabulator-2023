@@ -179,7 +179,7 @@ class MCP23008:
 
         # Invert the bits
         if type(value) is int:
-            inverted_value = seven_segment_values[value] ^ 0xFF
+            inverted_value = seven_segment_values[value%10] ^ 0xFF
             result = int(bin(inverted_value)[2:], 2)
         
         elif type(value) is list:
@@ -234,8 +234,8 @@ mcp23008.direction(0x00)
 # Define motor pins
 motor_A_pwm_forward = machine.PWM(machine.Pin(19)) 
 motor_A_pwm_backward = machine.PWM(machine.Pin(18)) 
-motor_B_pwm_forward = machine.PWM(machine.Pin(11)) 
-motor_B_pwm_backward = machine.PWM(machine.Pin(10))
+motor_B_pwm_forward = machine.PWM(machine.Pin(20)) 
+motor_B_pwm_backward = machine.PWM(machine.Pin(21))
 
 # Set PWM frequency (Hz) for both motors
 pwm_freq = 1000
@@ -248,10 +248,13 @@ motor_B_pwm_backward.freq(pwm_freq)
 # Define the counter
 left_ticks = 0
 right_ticks = 0
+button_counts = 0
 
 # Define the GPIO pins
 left_tick_pin = machine.Pin(26, machine.Pin.IN, machine.Pin.PULL_DOWN)
 right_tick_pin = machine.Pin(27, machine.Pin.IN, machine.Pin.PULL_DOWN)
+
+button_pin = machine.Pin(3, machine.Pin.IN, machine.Pin.PULL_DOWN)
 
 # Interrupt handler functions for each pin
 def left_tick_handler(pin):
@@ -261,6 +264,11 @@ def left_tick_handler(pin):
 def right_tick_handler(pin):
     global right_ticks
     right_ticks += 1
+
+def button_handler(pin):
+    global button_counts
+    button_counts += 1
+    
 
 # Configure pin change interrupts on rising edge for each pin
 left_tick_pin.irq(trigger=machine.Pin.IRQ_RISING, handler=left_tick_handler)
@@ -440,7 +448,7 @@ def dijkstra(maze, start, end):
             new_position = (current_position[0] + direction[0], current_position[1] + direction[1])
 
             # Check if the new position is within the maze bounds
-            if 0 <= new_position[0] < rows and 0 <= new_position[1] < cols:
+            if 0 <= new_position[0] < rows and 0 <= new_position[1] < cols and maze[8 - new_position[1]][new_position[0]].explored == True:
                 new_distance = distances[current_position] + 1
 
                 if new_distance < distances.get(new_position, float('inf')):
@@ -542,7 +550,6 @@ def explore_maze(facing):
         possible_directions.append((0, 1))
     if right_dist == 255:
         possible_directions.append((1, 0))
-    possible_directions.append((0,-1))
     
     #possible_directions =  possible_directions[facing:] + possible_directions[:facing]
     print("possible directions:  " + str(possible_directions))
@@ -551,7 +558,7 @@ def explore_maze(facing):
     
     direction_to_move = None
     # eliminate possible movements that would go into an already explored tile if len > 1
-    if len(possible_directions) > 1:
+    if len(possible_directions) > 0:
         for direction in possible_directions:
             # convert direction into global direction based on facing
             global_direction = global_transform(direction)
@@ -568,6 +575,7 @@ def explore_maze(facing):
 
     # otherwise just pick 1st in list
     if direction_to_move is None:
+        possible_directions.append((0,-1))
         direction_to_move = possible_directions[0]
         global_direction = global_transform(direction_to_move)
         current_pos[0] += global_direction[0]
@@ -618,28 +626,6 @@ def follow_path(path):
 
         print(current_position, next_position, direction_to_move)
 
-        
-        # Determine the turn and update facing
-        '''if direction_to_move == (0,1):
-            pass
-        elif direction_to_move == (-1, 0):
-            turn_degrees(-90,80)
-            facing -= 1
-            if facing < -1:
-                facing = 2
-        elif direction_to_move == (1,0):
-            turn_degrees(90,80)
-            facing += 1
-            if facing > 2:
-                facing = -1
-        else:
-            turn_degrees(90,80)
-            time.sleep(0.5)
-            turn_degrees(90,80)
-            if facing < 1:
-                facing += 2
-            else:
-                facing -= 2'''
         
         if facing == 0:
             if direction_to_move == (0,1):
@@ -697,7 +683,7 @@ def follow_path(path):
 
 
 # variables
-end_pos = [1,0] # should be [5,5]
+end_pos = [2,2] # should be [5,5]
 try:
     maze = []
     for i in range(9):
