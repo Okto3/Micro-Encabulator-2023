@@ -319,7 +319,7 @@ def turn_degrees(angle, speed):
 
     angle: 0 is forwards, +ve is clockwise, -ve is anticlockwise
     '''
-    required_ticks = int(0.78 * abs(angle)) + 10 # the +c is the trim
+    required_ticks = int(0.78 * abs(angle)) + 13 # the +c is the trim
 
     if angle == -90:
         print("turn left")
@@ -347,7 +347,11 @@ def turn_degrees(angle, speed):
         if right_move > 65535:
             right_move = 65535
         
-        if angle > 0:
+        if angle == 180:
+            motor_A_pwm_forward.duty_u16(int(left_move/4))
+            motor_B_pwm_backward.duty_u16(int(right_move*1.5))
+
+        elif angle > 0:
             motor_A_pwm_forward.duty_u16(left_move)
             motor_B_pwm_backward.duty_u16(right_move)
             #print(error, int((speed + error * Kp)), int((speed - error * Kp)))
@@ -383,12 +387,12 @@ def move_forward_tiles(speed, tiles_to_move):
 
     Kp = -2
     error = 0
-    distance_to_wall = 80
-    min_tof_threshold = 100
+    distance_to_wall = 65
+    min_tof_threshold = 120
 
-    trim = 1.05
+    trim = 1.1
 
-    while (left_ticks < 0.94*180*tiles_to_move*trim or right_ticks < 0.94*180*tiles_to_move*trim) and tofFront.range() > 20:
+    while (left_ticks < 0.94*180*tiles_to_move*trim or right_ticks < 0.94*180*tiles_to_move*trim) and tofFront.range() > 35:
         #print(left_ticks)
         #print(0.94*180*tiles_to_move)
         left_dist = tofLeft.range()
@@ -417,11 +421,11 @@ def move_forward_tiles(speed, tiles_to_move):
 
 
         walls = [0,0,0,0]
-        if left_dist < 100:
+        if left_dist < 120:
             walls[3] = 1
-        if front_dist < 100:
+        if front_dist < 120:
             walls[0] = 1
-        if right_dist < 100:
+        if right_dist < 120:
             walls[1] = 1
         mcp23008.display_on_7_segment(walls)
 
@@ -518,11 +522,11 @@ def explore_maze(facing):
     print(left_dist, right_dist, front_dist)
     #        N E S W
     walls = [0,0,0,0]
-    if left_dist < 100:
+    if left_dist < 120:
         walls[3] = 1
-    if front_dist < 100:
+    if front_dist < 120:
         walls[0] = 1
-    if right_dist < 100:
+    if right_dist < 120:
         walls[1] = 1
     mcp23008.display_on_7_segment(walls)        
     
@@ -587,27 +591,28 @@ def explore_maze(facing):
     print("direction: " + str(direction_to_move) + "  global direction: " + str(global_direction))
     # move to next tile
     if direction_to_move == (0,1):
-        pass
+        move_forward_tiles(80, 1)
     elif direction_to_move == (-1, 0):
         turn_degrees(-90,80)
         facing -= 1
         if facing < -1:
             facing = 2
+        move_forward_tiles(80, 1)
     elif direction_to_move == (1,0):
         turn_degrees(90,80)
         facing += 1
         if facing > 2:
             facing = -1
+        move_forward_tiles(80, 1)
     else:
-        turn_degrees(90,80)
-        time.sleep(0.5)
-        turn_degrees(90,80)
+        turn_degrees(180,80)
         if facing < 1:
             facing += 2
         else:
             facing -= 2
+        move_distance(110,80)
     
-    move_forward_tiles(80, 1)
+    
     time.sleep(0.5)
 
     return facing, current_pos
@@ -683,7 +688,7 @@ def follow_path(path):
 
 
 # variables
-end_pos = [2,2] # should be [5,5]
+end_pos = [4,4] # should be [4,4]
 try:
     maze = []
     for i in range(9):
@@ -724,7 +729,6 @@ try:
             while True:
                 stop()
         
-
-finally:
-    stop()
+except:
+    pass
 
