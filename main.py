@@ -319,7 +319,7 @@ def turn_degrees(angle, speed):
 
     angle: 0 is forwards, +ve is clockwise, -ve is anticlockwise
     '''
-    required_ticks = int(0.78 * abs(angle)) + 13 # the +c is the trim
+    required_ticks = int(0.78 * abs(angle)) + 5 # the +c is the trim
 
     if angle == -90:
         print("turn left")
@@ -539,8 +539,10 @@ def explore_maze(facing):
     if current_pos == [0,0]:
         maze[8][0] = Tile((0,0), 1, 0, walls[0], walls[1], 1, 1)
     else:
-        maze[8-current_pos[1]][current_pos[0]] = Tile(current_pos, 1, 0, walls[0], walls[1], walls[2], walls[3])
-    
+        try:
+            maze[8-current_pos[1]][current_pos[0]] = Tile(current_pos, 1, 0, walls[0], walls[1], walls[2], walls[3])
+        except IndexError:
+            pass
     print_maze(maze)
 
     if current_pos == end_pos:
@@ -568,7 +570,16 @@ def explore_maze(facing):
             global_direction = global_transform(direction)
             # check if it's been explored
 
-            if maze[8-(current_pos[1]+global_direction[1])][current_pos[0]+global_direction[0]].explored == False:
+            try:
+                if maze[8-(current_pos[1]+global_direction[1])][current_pos[0]+global_direction[0]].explored == False:
+                    direction_to_move = direction
+                    print('direction relative to robot: ' + str(direction))
+
+                    # update position
+                    current_pos[0] += global_direction[0]
+                    current_pos[1] += global_direction[1]
+                    break
+            except IndexError:
                 direction_to_move = direction
                 print('direction relative to robot: ' + str(direction))
 
@@ -613,7 +624,7 @@ def explore_maze(facing):
         move_distance(110,80)
     
     
-    time.sleep(0.5)
+    #time.sleep(0.5)
 
     return facing, current_pos
 
@@ -689,46 +700,45 @@ def follow_path(path):
 
 # variables
 end_pos = [4,4] # should be [4,4]
-try:
-    maze = []
-    for i in range(9):
-        maze.append([])
-        for j in range(9):
-            maze[i].append(Tile((j,8-i),0,0,0,0,0,0))
+#try:
+maze = []
+for i in range(9):
+    maze.append([])
+    for j in range(9):
+        maze[i].append(Tile((j,8-i),0,0,0,0,0,0))
 
 
-    starting_pos = [0,0]
-    current_pos = starting_pos
-    facing = 0 # 0 is North, 1 is East, -1 is West, 2 is South
-    while True:
+starting_pos = [0,0]
+current_pos = starting_pos
+facing = 0 # 0 is North, 1 is East, -1 is West, 2 is South
+while True:
+    facing, current_pos = explore_maze(facing)
+    if current_pos == end_pos:
         facing, current_pos = explore_maze(facing)
-        if current_pos == end_pos:
-            facing, current_pos = explore_maze(facing)
-            #print_maze(maze)
-            shortest_path_lengths, shortest_path = dijkstra(maze, (current_pos[0], current_pos[1]), (0,0))
-            print("Shortest Path Lengths:", shortest_path_lengths)
-            print("Shortest Path:", shortest_path)
-            mcp23008.display_on_7_segment(shortest_path_lengths)
+        #print_maze(maze)
+        shortest_path_lengths, shortest_path = dijkstra(maze, (current_pos[0], current_pos[1]), (0,0))
+        print("Shortest Path Lengths:", shortest_path_lengths)
+        print("Shortest Path:", shortest_path)
+        mcp23008.display_on_7_segment(shortest_path_lengths)
 
-            # orrient forward
-            if facing == 1:
-                turn_degrees(-90, 80)
-            elif facing == 2:
-                turn_degrees(180, 80)
-            elif facing == -1:
-                turn_degrees(90, 80)
+        # orrient forward
+        if facing == 1:
+            turn_degrees(-90, 80)
+        elif facing == 2:
+            turn_degrees(180, 80)
+        elif facing == -1:
+            turn_degrees(90, 80)
 
-            # move to 0
-            facing = follow_path(shortest_path)
+        # move to 0
+        facing = follow_path(shortest_path)
 
-            '''
-            Shortest Path: [(0, 1), (0, 2), (1, 2), (1, 1), (1, 0), (0, 0)]
-            follow that path
-            in dijkstra (line 426) check that the tile has been explored
-            '''
-            while True:
-                stop()
-        
-except:
-    pass
+        '''
+        Shortest Path: [(0, 1), (0, 2), (1, 2), (1, 1), (1, 0), (0, 0)]
+        follow that path
+        in dijkstra (line 426) check that the tile has been explored
+        '''
+        while True:
+            stop()
+
+
 
